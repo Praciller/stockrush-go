@@ -6,7 +6,14 @@ Docker Compose runs PostgreSQL, migrations, API, worker, and static frontend. Th
 
 ## Mode 2: Static portfolio
 
-Run `npm --prefix web ci && npm --prefix web run build`, then publish `web/dist/` to any static host. The bundled fallback evidence keeps the project understandable without an API and is clearly labelled pre-generated.
+The `Pages` workflow tests and builds only `web/`, publishes `web/dist/` under `/stockrush-go/`, and deploys it through GitHub Pages. `VITE_STATIC_DEMO=true` disables API discovery so the page immediately and honestly labels its bundled deterministic evidence.
+
+Equivalent local build:
+
+```powershell
+$env:VITE_STATIC_DEMO='true'
+npm --prefix web run build -- --base=/stockrush-go/
+```
 
 ## Mode 3: Optional live demo
 

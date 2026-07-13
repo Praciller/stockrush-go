@@ -4,6 +4,7 @@ import { isZeroOversell, staticReport, staticStatus, type DemoStatus, type LoadR
 import "./styles.css";
 
 const attemptOptions = [10, 100, 500, 1000];
+const staticDemo = import.meta.env.VITE_STATIC_DEMO === "true";
 
 function currency(minor: number, code: string) {
   return new Intl.NumberFormat("en", { style: "currency", currency: code }).format(minor / 100);
@@ -17,7 +18,7 @@ function App() {
   const [live, setLive] = useState(false);
   const [hasRunReport, setHasRunReport] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Connecting to the local API…");
+  const [message, setMessage] = useState(staticDemo ? "Live API unavailable. Showing deterministic portfolio evidence." : "Connecting to the local API…");
 
   async function refresh() {
     try {
@@ -51,7 +52,7 @@ function App() {
   }
 
   useEffect(() => {
-    void refresh();
+    if (!staticDemo) void refresh();
   }, []);
 
   async function runLoad() {
@@ -97,7 +98,7 @@ function App() {
         <nav aria-label="Project sections">
           <a href="#proof">Proof</a><a href="#simulator">Simulator</a><a href="#orders">Orders</a><a href="#architecture">Architecture</a>
         </nav>
-        <div className="top-actions"><a className="text-link" href="https://github.com/Praciller/stockrush-go">Source</a><a className="text-link" href={api.openapiURL}>OpenAPI</a></div>
+        <div className="top-actions"><a className="text-link" href="https://github.com/Praciller/stockrush-go">Source</a>{!staticDemo && <a className="text-link" href={api.openapiURL}>OpenAPI</a>}</div>
       </header>
 
       <main>

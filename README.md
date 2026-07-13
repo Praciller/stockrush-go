@@ -4,6 +4,14 @@ Concurrency-safe flash-sale and inventory-reservation platform built with Go and
 
 > **1,000 buyers. 100 items. Exactly 100 successful reservations. Zero overselling.**
 
+[![CI](https://github.com/Praciller/stockrush-go/actions/workflows/ci.yml/badge.svg)](https://github.com/Praciller/stockrush-go/actions/workflows/ci.yml)
+
+## Screenshot
+
+![StockRush Go mobile reviewer interface](docs/assets/stockrush-mobile.png)
+
+The React interface reports live PostgreSQL state when the API is available. If it is offline, the page explicitly labels and displays deterministic pre-generated evidence.
+
 ## Verified result
 
 | Measure | Result |
@@ -18,12 +26,6 @@ Concurrency-safe flash-sale and inventory-reservation platform built with Go and
 | Zero overselling | **PASS** |
 
 See the generated [local portfolio report](reports/local_portfolio_report.md).
-
-## Screenshot
-
-![StockRush Go mobile reviewer interface](docs/assets/stockrush-mobile.png)
-
-The React interface reports live PostgreSQL state when the API is available. If it is offline, the page explicitly labels and displays deterministic pre-generated evidence.
 
 ## Architecture
 
@@ -140,3 +142,7 @@ The k6 scenario accepts `API_BASE_URL`, `SALE_ID`, `VUS`, `DURATION`, and `IDEMP
 ## Limitations
 
 The MVP uses a process-local rate limiter, synthetic payments, and a local demo token. Authentication, distributed rate limiting, external payment providers, Kafka, Redis, Kubernetes, and microservices are intentionally excluded. See [limitations](docs/limitations.md).
+
+## License
+
+[MIT](LICENSE)
