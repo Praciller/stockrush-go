@@ -2,8 +2,8 @@
 
 ## Environment
 
-- Timestamp: 2026-07-13T06:42:12Z
-- Go: go1.26.2
+- Timestamp: 2026-07-13T07:51:28Z
+- Go: go1.26.5
 - Storage: PostgreSQL
 
 ## Demo Parameters
@@ -24,9 +24,9 @@
 
 ## Latency Summary
 
-- p50: 1610.58 ms
-- p95: 2075.70 ms
-- p99: 2108.90 ms
+- p50: 839.40 ms
+- p95: 1285.24 ms
+- p99: 1326.10 ms
 
 ## Reservation Expiration Results
 

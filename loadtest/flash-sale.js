@@ -1,5 +1,6 @@
 import http from "k6/http";
 import { check } from "k6";
+import { sleep } from "k6";
 import { Counter } from "k6/metrics";
 
 const baseURL = __ENV.API_BASE_URL || "http://host.docker.internal:8080";
@@ -43,4 +44,5 @@ export default function (data) {
   else if (response.status === 429) rateLimited.add(1);
   else failed.add(1);
   check(response, { "expected flash-sale response": (r) => [200, 201, 409, 429].includes(r.status) });
+  if (__ENV.SLEEP_SECONDS) sleep(Number(__ENV.SLEEP_SECONDS));
 }
