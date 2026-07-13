@@ -1,20 +1,48 @@
 # Production Readiness
 
-Audit baseline: 2026-07-13 at commit `e8749e4bc6eb366beeee8f160588f8c6e7b680c2`.
+This document preserves two explicit repository snapshots:
+
+- **Pre-hardening audit baseline:** 2026-07-13 at commit `e8749e4bc6eb366beeee8f160588f8c6e7b680c2`.
+- **Final hardened repository state:** 2026-07-13 at commit `b6d6770d83ee3022b561637b985b452d84fdc300`.
+
+## Current Status at `b6d6770`
+
+| Surface / level | Status |
+|---|---|
+| Static portfolio | Verified |
+| Local full-stack | Verified |
+| Public Go API | Not deployed |
+| Public PostgreSQL | Not deployed |
+| Public worker | Not deployed |
+| Level B | Implementation-ready locally but not publicly verified |
+| Commercial production | Not claimed |
 
 ## Readiness Levels
 
 - **Level A — Static Portfolio Ready:** verified. GitHub Pages serves deterministic evidence and clearly states that the API is offline.
-- **Level B — Public Production-Like Demo Ready:** not yet verified. Production controls, operational drills, and a compliant hosting path are still required.
+- **Level B — Public Production-Like Demo Ready:** implementation-ready and verified locally, but not publicly verified because the API, database, and worker are not deployed.
 - **Level C — Commercial Production Ready:** not claimed. Real identity, payments, legal/privacy controls, automated backups, incident response, support, and reliable paid infrastructure are intentionally outside this portfolio demo.
 
-## Post-Hardening Status
+## Post-Hardening Control Summary at `b6d6770`
 
-The audit matrix below records the baseline at `e8749e4`. The current working tree closes the locally actionable Level B gaps with fail-closed production configuration, authenticated operator routes, one bounded synthetic public mutation, trusted-proxy handling, bounded list responses, PostgreSQL migration locking and global demo accounting, explicit pool/timeouts, JSON production logs, protected metrics, worker metrics, invariant checks, restore and failure drills, capacity evidence, dependency scanning, and a minimal distroless runtime image.
+| Control | Final state | Repository evidence |
+|---|---|---|
+| Production configuration | `APP_ENV=production` fails closed on insecure URLs, TLS, CORS, logging, demo controls, and weak admin credentials | `internal/config/config.go`, `internal/config/config_test.go`, `.env.example` |
+| Authentication and route policy | Operator mutations use a hashed bearer key; development controls return 404 in production | `internal/httpserver/router.go`, `internal/httpserver/server_test.go`, `docs/security.md` |
+| Bounded public mutation | One synthetic quantity-one reservation path uses server-generated identity, idempotency, per-client limiting, and a PostgreSQL global budget | `internal/httpserver/demo.go`, `internal/store/demo.go`, `db/migrations/004_public_demo_actions.sql` |
+| Proxy and HTTP hardening | Forwarded client IPs are accepted only from configured proxy CIDRs; JSON, body, header, CORS, list, timeout, health, and version boundaries are explicit | `internal/httpserver/router.go`, `cmd/api/main.go`, `internal/config/config.go` |
+| Database safety | TLS validation, explicit pool/session timeouts, advisory-locked migrations, reconciliation state, and an operator invariant command are implemented | `internal/database/database.go`, `db/migrations/005_inventory_expected_total.sql`, `cmd/invariant-check/main.go`, [Database operations](database-operations.md) |
+| Worker reliability | The reusable expiration loop updates shared metrics and was verified through worker/database/API recovery drills | `internal/expirationworker/worker.go`, `cmd/worker/main.go`, [Failure recovery report](../reports/failure_recovery_report.md) |
+| Container and dependency security | Go 1.26.5 builds into a non-root distroless runtime with a compiled healthcheck; CI runs Go/npm vulnerability checks and Trivy | `Dockerfile`, `.github/workflows/ci.yml` |
+| Operational evidence | Restore, failure, correctness, capacity, and soak checks completed locally with synthetic data | [Restore drill](../reports/restore_drill_report.md), [Failure recovery](../reports/failure_recovery_report.md), [Capacity and soak](../reports/production_capacity_report.md), [Local correctness](../reports/local_portfolio_report.md) |
+| Operations guidance | Deployment, rollback, backup/restore, diagnostics, and emergency read-only procedures are documented | [Production runbook](production-runbook.md), [Database operations](database-operations.md), [Observability](observability.md) |
+| Hosting decision | A permanent-free candidate was documented, but public deployment stopped when database provisioning could not be completed | [Hosting evaluation](hosting-evaluation.md) |
 
-Level B remains **not verified** until the approval-gated Neon and Hugging Face resources are created, production secrets are configured, GitHub Pages is pointed at the deployed API, and the public smoke/concurrency/restart checks pass. The permanent-free hosting candidate and its limitations are documented in [Hosting evaluation](hosting-evaluation.md).
+Level B remains **not publicly verified** until compliant database and API resources are provisioned, production secrets are configured, GitHub Pages is pointed at the deployed API, and public smoke, expiration, restart, and availability checks pass.
 
-## Audit Matrix
+## Pre-Hardening Audit Matrix at `e8749e4`
+
+Every row below describes the original audit baseline, not the final state at `b6d6770`. The post-hardening control summary above is the current repository status.
 
 | Area | Current state | Evidence | Risk | Required change | Verification method | Status |
 |---|---|---|---|---|---|---|
@@ -49,7 +77,7 @@ Level B remains **not verified** until the approval-gated Neon and Hugging Face 
 | Database timeouts/pool | Contexts flow to queries; pgx defaults are used | `internal/database/database.go`, store methods | Pool size/lifetime and statement/transaction timeouts are uncontrolled | Configure pool bounds and session timeouts | Pool config tests and database inspection | Gap |
 | Database invariants | Non-negative checks, foreign keys, unique reservation/order mapping, and reconciliation logic exist | `db/migrations/001_init.sql`, `internal/store/demo.go` | Invariant checker is tied to first demo rows and is not an operator command | Add a read-only all-row invariant command that exits non-zero | `go run ./cmd/invariant-check` | Partial |
 
-## Completed Controls
+## Baseline Controls Already Present at `e8749e4`
 
 - PostgreSQL is the concurrency boundary; conditional updates and constraints prevent negative inventory.
 - Reservation and payment idempotency are database-backed.
@@ -58,7 +86,7 @@ Level B remains **not verified** until the approval-gated Neon and Hugging Face 
 - The container is multi-stage and runs as a non-root user.
 - The public static frontend is verified and clearly labels deterministic fallback evidence.
 
-## Required Level B Gaps
+## Original Level B Gaps at `e8749e4`
 
 1. Fail-closed production configuration and route policy.
 2. Authenticated operator mutations plus one bounded anonymous synthetic reservation path.
@@ -67,6 +95,8 @@ Level B remains **not verified** until the approval-gated Neon and Hugging Face 
 5. Production logging/metrics, worker recovery, failure injection, capacity, and soak evidence.
 6. Current official hosting evaluation satisfying the permanent-free, no-card, no-trial, no-auto-billing constraint.
 7. Real public end-to-end verification if and only if item 6 succeeds.
+
+At `b6d6770`, the locally actionable implementation and evidence work in items 1–6 is complete. Item 7 remains open because the public API, PostgreSQL database, and worker were not deployed.
 
 ## Deferred Level C Controls
 
@@ -78,5 +108,12 @@ Real users and identity, real payment processing, legal/privacy compliance, auto
 - [Security baseline](security.md)
 - [Database design](database.md)
 - [Concurrency proof](concurrency.md)
+- [Production capacity report](../reports/production_capacity_report.md)
+- [Failure recovery report](../reports/failure_recovery_report.md)
+- [Restore drill report](../reports/restore_drill_report.md)
 - [Local portfolio report](../reports/local_portfolio_report.md)
+- [Hosting evaluation](hosting-evaluation.md)
+- [Production runbook](production-runbook.md)
+- [Database operations](database-operations.md)
+- [Observability](observability.md)
 - [Static portfolio](https://praciller.github.io/stockrush-go/)
