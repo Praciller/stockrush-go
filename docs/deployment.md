@@ -17,9 +17,11 @@ $env:VITE_STATIC_DEMO='true'
 npm --prefix web run build -- --base=/stockrush-go/
 ```
 
-## Mode 3: Optional live demo
+## Mode 3: Evaluated live demo
 
-Choose any static host, container host, and PostgreSQL provider that support the required free/open setup. Supply configuration through environment variables, disable or protect demo mutations, and run migrations before API and worker startup.
+The current candidate is GitHub Pages plus one Hugging Face CPU Basic Docker Space and Neon Free PostgreSQL. The API co-locates the expiration worker because the free compute boundary is one container. Production configuration fails closed, migrations use an advisory lock, and the public reservation is globally bounded in PostgreSQL.
+
+See `hosting-evaluation.md` before deployment. Free-plan limits and terms must be rechecked, and cloud secrets require explicit approval.
 
 > Free-plan limits and availability may change. The local Docker Compose demo remains the authoritative deployment path.
 

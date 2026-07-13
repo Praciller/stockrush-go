@@ -8,6 +8,20 @@ Concurrency-safe flash-sale and inventory-reservation platform built with Go and
 
 **[View the static portfolio evidence](https://praciller.github.io/stockrush-go/)** — frontend-only; it does not run the Go API or PostgreSQL.
 
+## Deployment status
+
+| Surface | Status |
+|---|---|
+| Static portfolio frontend | Verified |
+| Local full-stack | Verified |
+| Public Go API | Not deployed |
+| Public PostgreSQL | Not deployed |
+| Expiration worker | Not deployed |
+| Production-like demo | Level A — Static Portfolio Ready |
+| Commercial production | Not claimed |
+
+Pre-generated evidence is labelled separately from live database state. Local correctness, restore, failure, capacity, and soak evidence does not imply public-cloud availability.
+
 ## Screenshot
 
 ![StockRush Go mobile reviewer interface](docs/assets/stockrush-mobile.png)
@@ -139,11 +153,13 @@ The k6 scenario accepts `API_BASE_URL`, `SALE_ID`, `VUS`, `DURATION`, and `IDEMP
 
 ## Documentation
 
+[Production readiness](docs/production-readiness.md) · [Hosting evaluation](docs/hosting-evaluation.md) · [Database operations](docs/database-operations.md) · [Observability](docs/observability.md) · [Production runbook](docs/production-runbook.md)
+
 [Architecture](docs/architecture.md) · [Database](docs/database.md) · [API](docs/api.md) · [Concurrency](docs/concurrency.md) · [Idempotency](docs/idempotency.md) · [Worker](docs/reservation-worker.md) · [Local demo](docs/local-demo.md) · [Security](docs/security.md) · [Deployment](docs/deployment.md) · [Portfolio review](docs/portfolio-review.md) · [Limitations](docs/limitations.md) · [Backlog](docs/backlog.md)
 
 ## Limitations
 
-The MVP uses a process-local rate limiter, synthetic payments, and a local demo token. Authentication, distributed rate limiting, external payment providers, Kafka, Redis, Kubernetes, and microservices are intentionally excluded. See [limitations](docs/limitations.md).
+The public-demo design uses a process-local per-IP limiter plus a database-backed global budget, synthetic payments, and a hashed operator API key. A free public deployment would sleep, co-locate the API and worker, and use a public TLS database endpoint. Real identity, payments, SLA, and commercial operations remain excluded. See [limitations](docs/limitations.md).
 
 ## License
 
