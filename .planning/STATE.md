@@ -5,15 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-07-13)
 
 **Core value:** Exactly 100 of 1,000 buyers reserve 100 items with zero overselling and no duplicate orders.  
-**Current focus:** Phase 2 — Foundation
+**Current focus:** Phase 3 — Core Domain
 
 ## Progress
 
 | Phase | Status | Evidence |
 |-------|--------|----------|
 | 1 | Complete | Repository audit and planning artifacts validated |
-| 2 | In progress | Foundation tracer-bullet test next |
-| 3-10 | Pending | — |
+| 2 | Complete | Config and health tests pass; PostgreSQL migration applied locally |
+| 3 | In progress | Core domain and API tracer bullets next |
+| 4-10 | Pending | — |
 
 ## Environment
 
@@ -33,4 +34,4 @@ See: `.planning/PROJECT.md` (updated 2026-07-13)
 
 ## Next Action
 
-Begin the Phase 2 foundation with a failing health/config test.
+Implement the reservation state machine and PostgreSQL store through public behavior tests.

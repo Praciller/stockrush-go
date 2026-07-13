@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: stockrush
+      POSTGRES_USER: stockrush
+      POSTGRES_PASSWORD: stockrush
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockrush -d stockrush"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
+    volumes:
+      - stockrush-data:/var/lib/postgresql/data
+
+  migrate:
+    build: .
+    command: ["migrate"]
+    environment: &backend-env
+      APP_ENV: development
+      HTTP_PORT: 8080
+      DATABASE_URL: postgres://stockrush:stockrush@postgres:5432/stockrush?sslmode=disable
+      RESERVATION_TTL: 2m
+      WORKER_BATCH_SIZE: 50
+      WORKER_POLL_INTERVAL: 1s
+      RATE_LIMIT_REQUESTS: 2000
+      RATE_LIMIT_BURST: 2000
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      DEMO_TOKEN: stockrush-local-demo
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+
+  worker:
+    build: .
+    command: ["worker"]
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  stockrush-data:
