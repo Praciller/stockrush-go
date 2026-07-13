@@ -8,6 +8,8 @@ Docker Compose runs PostgreSQL, migrations, API, worker, and static frontend. Th
 
 The `Pages` workflow tests and builds only `web/`, publishes `web/dist/` under `/stockrush-go/`, and deploys it through GitHub Pages. `VITE_STATIC_DEMO=true` disables API discovery so the page immediately and honestly labels its bundled deterministic evidence.
 
+Verified static URL: <https://praciller.github.io/stockrush-go/>
+
 Equivalent local build:
 
 ```powershell

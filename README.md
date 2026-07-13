@@ -6,6 +6,8 @@ Concurrency-safe flash-sale and inventory-reservation platform built with Go and
 
 [![CI](https://github.com/Praciller/stockrush-go/actions/workflows/ci.yml/badge.svg)](https://github.com/Praciller/stockrush-go/actions/workflows/ci.yml)
 
+**[View the static portfolio evidence](https://praciller.github.io/stockrush-go/)** — frontend-only; it does not run the Go API or PostgreSQL.
+
 ## Screenshot
 
 ![StockRush Go mobile reviewer interface](docs/assets/stockrush-mobile.png)
