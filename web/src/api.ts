@@ -1,7 +1,7 @@
 import type { DemoStatus, LoadReport, Order } from "./evidence";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
-const demoToken = import.meta.env.VITE_DEMO_TOKEN ?? "stockrush-local-demo";
+const demoToken = import.meta.env.VITE_DEMO_TOKEN;
 
 type Envelope<T> = { data: T };
 
@@ -20,18 +20,17 @@ export const api = {
   runLoad: (attempts: number) =>
     request<LoadReport>("/api/v1/demo/load-test", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Demo-Token": demoToken },
+      headers: { "Content-Type": "application/json", ...(demoToken ? { "X-Demo-Token": demoToken } : {}) },
       body: JSON.stringify({ attempts }),
     }),
-  buy: (saleId: string, userId: string) =>
-    request<{ reservation: { id: string } }>(`/api/v1/sales/${saleId}/reservations`, {
+  buy: (idempotencyKey: string) =>
+    request<{ reservationId: string; expiresAt: string }>("/api/v1/public-demo/reservations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Idempotency-Key": `ui-${userId}`,
-        "X-User-ID": userId,
+        "Idempotency-Key": idempotencyKey,
       },
-      body: JSON.stringify({ userId, quantity: 1 }),
+      body: "{}",
     }),
   openapiURL: `${baseURL}/openapi.yaml`,
 };

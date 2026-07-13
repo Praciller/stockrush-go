@@ -32,6 +32,33 @@ func (s *Server) demoStatus(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, http.StatusOK, status, err)
 }
 
+func (s *Server) publicDemoReservation(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.PublicMutationsEnabled {
+		s.failure(w, r, &domain.Error{Code: "PUBLIC_MUTATIONS_DISABLED", Message: "Public demo reservations are temporarily disabled", HTTPStatus: http.StatusServiceUnavailable})
+		return
+	}
+	var body struct{}
+	if err := decodeJSON(w, r, &body); err != nil {
+		s.failure(w, r, err)
+		return
+	}
+	result, err := s.store.ReservePublicDemo(r.Context(), r.Header.Get("Idempotency-Key"), s.cfg.DemoMaxConcurrency)
+	if err != nil {
+		s.failure(w, r, err)
+		return
+	}
+	status := http.StatusCreated
+	if result.Duplicate {
+		status = http.StatusOK
+	}
+	s.success(w, r, status, map[string]any{
+		"reservationId": result.Reservation.ID,
+		"state":         result.Reservation.State,
+		"expiresAt":     result.Reservation.ExpiresAt,
+		"duplicate":     result.Duplicate,
+	})
+}
+
 func (s *Server) demoReset(w http.ResponseWriter, r *http.Request) {
 	if !s.demoAuthorized(r) {
 		s.failure(w, r, &domain.Error{Code: "DEMO_FORBIDDEN", Message: "Demo controls are available only in local development with X-Demo-Token", HTTPStatus: http.StatusForbidden})

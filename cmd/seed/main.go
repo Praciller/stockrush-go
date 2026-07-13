@@ -2,22 +2,19 @@ package main
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 	"os"
 	"time"
 
 	"stockrush-go/internal/config"
 	"stockrush-go/internal/database"
+	"stockrush-go/internal/store"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("invalid configuration", "error", err)
-		os.Exit(1)
-	}
-	if cfg.Production() {
-		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+		fail(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -26,13 +23,17 @@ func main() {
 		StatementTimeout: cfg.DatabaseStatementTimeout, TransactionTimeout: cfg.DatabaseTransactionTimeout,
 	})
 	if err != nil {
-		slog.Error("database unavailable", "error", err)
-		os.Exit(1)
+		fail(err)
 	}
 	defer pool.Close()
-	if err := database.Migrate(ctx, pool, "db/migrations"); err != nil {
-		slog.Error("migration failed", "error", err)
-		os.Exit(1)
+	status, err := store.New(pool, cfg.ReservationTTL).EnsurePublicDemo(ctx, 100)
+	if err != nil {
+		fail(err)
 	}
-	slog.Info("migrations complete")
+	fmt.Printf("public demo ready: sale=%s inventory=%d\n", status.Sale.ID, status.Product.Available)
+}
+
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
 }

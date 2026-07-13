@@ -5,6 +5,8 @@ import "./styles.css";
 
 const attemptOptions = [10, 100, 500, 1000];
 const staticDemo = import.meta.env.VITE_STATIC_DEMO === "true";
+const publicDemo = !staticDemo && Boolean(import.meta.env.VITE_API_BASE_URL);
+const localLoadEnabled = Boolean(import.meta.env.VITE_DEMO_TOKEN);
 
 function currency(minor: number, code: string) {
   return new Intl.NumberFormat("en", { style: "currency", currency: code }).format(minor / 100);
@@ -22,9 +24,12 @@ function App() {
 
   async function refresh() {
     try {
-      const [nextStatus, nextOrders] = await Promise.all([api.status(), api.orders()]);
+      const nextStatus = await api.status();
       setStatus(nextStatus);
-      setOrders(nextOrders.slice(0, 12));
+      if (!publicDemo) {
+        const nextOrders = await api.orders();
+        setOrders(nextOrders.slice(0, 12));
+      }
       setReport({
         ...staticReport,
         timestamp: new Date().toISOString(),
@@ -52,7 +57,13 @@ function App() {
   }
 
   useEffect(() => {
-    if (!staticDemo) void refresh();
+    if (staticDemo) return;
+
+    void refresh();
+    if (!publicDemo) return;
+
+    const refreshTimer = window.setInterval(() => void refresh(), 10_000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   async function runLoad() {
@@ -77,9 +88,9 @@ function App() {
   async function buyOne() {
     setBusy(true);
     try {
-      const userId = `reviewer-${Date.now()}`;
-      await api.buy(status.sale.id, userId);
-      setMessage("One reservation created with an idempotency key");
+      const key = crypto.randomUUID();
+      const reservation = await api.buy(key);
+      setMessage(`One synthetic reservation created; expires ${new Date(reservation.expiresAt).toLocaleTimeString()}`);
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Reservation failed");
@@ -132,7 +143,7 @@ function App() {
           </dl>
         </section>
 
-        <section id="simulator" className="simulator" aria-labelledby="simulator-title">
+        {!publicDemo && localLoadEnabled && <section id="simulator" className="simulator" aria-labelledby="simulator-title">
           <div className="section-heading">
             <div><p className="eyebrow">BOUNDED LOCAL LOAD</p><h2 id="simulator-title">Reproduce the contention</h2></div>
             <p>Every run resets synthetic stock to 100. No unlimited option exists.</p>
@@ -152,7 +163,7 @@ function App() {
             <span>p99 <b>{hasRunReport ? `${report.p99Millis.toFixed(1)} ms` : "not run"}</b></span>
             <span>failed <b>{report.failed}</b></span>
           </div>
-        </section>
+        </section>}
 
         <section className="sale" aria-labelledby="sale-title">
           <div>

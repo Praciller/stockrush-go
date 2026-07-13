@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Store) ListOrders(ctx context.Context) ([]domain.Order, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id,reservation_id,sale_id,product_id,user_id,quantity,amount_minor,currency,state,created_at,updated_at FROM orders ORDER BY created_at DESC`)
+	rows, err := s.pool.Query(ctx, `SELECT id,reservation_id,sale_id,product_id,user_id,quantity,amount_minor,currency,state,created_at,updated_at FROM orders ORDER BY created_at DESC LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}

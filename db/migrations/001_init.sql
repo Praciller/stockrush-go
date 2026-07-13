@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS inventory (
     available integer NOT NULL DEFAULT 0 CHECK (available >= 0),
     reserved integer NOT NULL DEFAULT 0 CHECK (reserved >= 0),
     sold integer NOT NULL DEFAULT 0 CHECK (sold >= 0),
+    expected_total integer NOT NULL DEFAULT 0 CHECK (expected_total >= 0),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 

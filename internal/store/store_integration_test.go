@@ -306,6 +306,50 @@ func TestSaleEndingRejectsNewReservations(t *testing.T) {
 	}
 }
 
+func TestInvariantCheckDetectsReconciliationFailure(t *testing.T) {
+	ctx, pool := testDatabase(t)
+	s := New(pool, 2*time.Minute)
+	status, err := s.ResetDemo(ctx, 10)
+	if err != nil {
+		t.Fatalf("ResetDemo: %v", err)
+	}
+	if violations, err := s.CheckInvariants(ctx); err != nil || len(violations) != 0 {
+		t.Fatalf("CheckInvariants() = %v, %v", violations, err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE inventory SET expected_total=expected_total+1 WHERE product_id=$1`, status.Product.ID); err != nil {
+		t.Fatalf("corrupt expected total: %v", err)
+	}
+	violations, err := s.CheckInvariants(ctx)
+	if err != nil {
+		t.Fatalf("CheckInvariants() error = %v", err)
+	}
+	if len(violations) == 0 || violations[0].Code != "INVENTORY_RECONCILIATION" {
+		t.Fatalf("CheckInvariants() = %#v, want reconciliation failure", violations)
+	}
+}
+
+func TestPublicDemoReservationIsIdempotentAndGloballyBounded(t *testing.T) {
+	ctx, pool := testDatabase(t)
+	s := New(pool, 2*time.Minute)
+	if _, err := s.ResetDemo(ctx, 10); err != nil {
+		t.Fatalf("ResetDemo: %v", err)
+	}
+	first, err := s.ReservePublicDemo(ctx, "reviewer-key", 1)
+	if err != nil {
+		t.Fatalf("first ReservePublicDemo: %v", err)
+	}
+	retry, err := s.ReservePublicDemo(ctx, "reviewer-key", 1)
+	if err != nil {
+		t.Fatalf("retry ReservePublicDemo: %v", err)
+	}
+	if !retry.Duplicate || retry.Reservation.ID != first.Reservation.ID {
+		t.Fatalf("retry = %#v, first = %#v", retry, first)
+	}
+	if _, err := s.ReservePublicDemo(ctx, "another-reviewer-key", 1); !domain.IsCode(err, "PUBLIC_DEMO_LIMIT_REACHED") {
+		t.Fatalf("second key error = %v, want PUBLIC_DEMO_LIMIT_REACHED", err)
+	}
+}
+
 func testDatabase(t *testing.T) (context.Context, *pgxpool.Pool) {
 	t.Helper()
 	databaseURL := os.Getenv("TEST_DATABASE_URL")

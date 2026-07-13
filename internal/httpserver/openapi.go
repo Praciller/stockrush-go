@@ -23,6 +23,10 @@ paths:
     get:
       summary: PostgreSQL readiness
       responses: {"200": {description: Ready}, "503": {description: Database unavailable}}
+  /version:
+    get:
+      summary: Safe build metadata
+      responses: {"200": {description: Version, commit, and build time}}
   /api/v1/products:
     get:
       summary: List products
@@ -45,6 +49,12 @@ paths:
     post:
       summary: Simulate an idempotent payment callback
       responses: {"201": {description: Payment recorded}, "200": {description: Original result replayed}}
+  /api/v1/public-demo/reservations:
+    post:
+      summary: Create one bounded anonymous synthetic reservation
+      parameters:
+        - {in: header, name: Idempotency-Key, required: true, schema: {type: string}}
+      responses: {"201": {description: Reservation created}, "200": {description: Original result replayed}, "429": {description: Per-IP or global budget exhausted}, "503": {description: Public mutations disabled}}
   /api/v1/demo/load-test:
     post:
       summary: Run a bounded local demonstration

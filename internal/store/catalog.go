@@ -52,7 +52,7 @@ func (s *Store) CreateProduct(ctx context.Context, in CreateProductInput) (domai
 	if err != nil {
 		return domain.Product{}, fmt.Errorf("insert product: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO inventory(product_id,available) VALUES ($1,$2)`, id, in.Inventory); err != nil {
+	if _, err := tx.Exec(ctx, `INSERT INTO inventory(product_id,available,expected_total) VALUES ($1,$2,$2)`, id, in.Inventory); err != nil {
 		return domain.Product{}, fmt.Errorf("insert inventory: %w", err)
 	}
 	product.Available = in.Inventory
@@ -65,7 +65,7 @@ func (s *Store) CreateProduct(ctx context.Context, in CreateProductInput) (domai
 func (s *Store) ListProducts(ctx context.Context) ([]domain.Product, error) {
 	rows, err := s.pool.Query(ctx, `SELECT p.id,p.sku,p.name,p.description,p.price_minor,p.currency,p.active,
 		i.available,i.reserved,i.sold,p.created_at,p.updated_at
-		FROM products p JOIN inventory i ON i.product_id=p.id ORDER BY p.created_at`)
+		FROM products p JOIN inventory i ON i.product_id=p.id ORDER BY p.created_at LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (s *Store) UpdateProduct(ctx context.Context, id string, in UpdateProductIn
 		return domain.Product{}, err
 	}
 	if in.Inventory != nil {
-		result, err = tx.Exec(ctx, `UPDATE inventory SET available=$2,updated_at=now() WHERE product_id=$1`, id, *in.Inventory)
+		result, err = tx.Exec(ctx, `UPDATE inventory SET available=$2,expected_total=$2+reserved+sold,updated_at=now() WHERE product_id=$1`, id, *in.Inventory)
 		if err != nil || result.RowsAffected() == 0 {
 			return domain.Product{}, err
 		}
@@ -151,7 +151,7 @@ func (s *Store) CreateSale(ctx context.Context, in CreateSaleInput) (domain.Sale
 }
 
 func (s *Store) ListSales(ctx context.Context) ([]domain.Sale, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id,product_id,starts_at,ends_at,allocated_stock,remaining_stock,max_quantity_per_user,state,created_at,updated_at FROM flash_sales ORDER BY created_at`)
+	rows, err := s.pool.Query(ctx, `SELECT id,product_id,starts_at,ends_at,allocated_stock,remaining_stock,max_quantity_per_user,state,created_at,updated_at FROM flash_sales ORDER BY created_at LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}
