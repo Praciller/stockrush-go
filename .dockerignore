@@ -1,0 +1,7 @@
+.git
+.planning
+.playwright-cli
+tmp
+reports/*.json
+web/node_modules
+web/dist

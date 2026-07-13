@@ -47,10 +47,10 @@ The repository was empty except for Git metadata on 2026-07-13. The supplied pro
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use PostgreSQL conditional updates and constraints for inventory | Correct under concurrent processes and instances | — Pending |
-| Keep one Go module with focused internal packages | Smallest architecture that preserves domain boundaries | — Pending |
-| Use deterministic static evidence only when the API is unreachable | Keeps the portfolio legible without misrepresenting live state | — Pending |
-| Run lifecycle sequentially | GSD agents are not installed and automatic subagent dispatch is unavailable | — Pending |
+| Use PostgreSQL conditional updates and constraints for inventory | Correct under concurrent processes and instances | Validated by integration and k6 tests |
+| Keep one Go module with focused internal packages | Smallest architecture that preserves domain boundaries | Validated by full Go test and race suites |
+| Use deterministic static evidence only when the API is unreachable | Keeps the portfolio legible without misrepresenting live state | Validated in the reviewer UI |
+| Run lifecycle sequentially | GSD agents are not installed and automatic subagent dispatch is unavailable | Completed with recorded verification evidence |
 
 ## Evolution
 

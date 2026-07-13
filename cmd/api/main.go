@@ -13,6 +13,7 @@ import (
 	"stockrush-go/internal/config"
 	"stockrush-go/internal/database"
 	"stockrush-go/internal/httpserver"
+	"stockrush-go/internal/store"
 )
 
 func main() {
@@ -30,10 +31,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	dataStore := store.New(pool, cfg.ReservationTTL)
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.HTTPPort),
-		Handler:           httpserver.NewHealthHandler(pool),
+		Handler:           httpserver.New(cfg, pool, dataStore),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

@@ -50,5 +50,13 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  frontend:
+    build: ./web
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "5173:80"
+
 volumes:
   stockrush-data:

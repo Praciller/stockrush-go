@@ -1,5 +1,8 @@
 .PHONY: setup migrate seed api worker frontend test test-integration load-test load-test-small load-test-demo demo verify clean
 
+DATABASE_URL ?= postgres://stockrush:stockrush@localhost:5432/stockrush?sslmode=disable
+export DATABASE_URL
+
 setup:
 	docker compose up -d postgres
 
@@ -22,13 +25,13 @@ test:
 	go test ./...
 
 test-integration:
-	go test -tags=integration ./...
+	go test -tags=integration -p 1 ./...
 
 load-test:
-	docker run --rm --network host -i grafana/k6:latest run - < loadtest/flash-sale.js
+	docker run --rm --network stockrush-go_default -e API_BASE_URL=http://api:8080 -v "$(CURDIR)/loadtest:/scripts:ro" grafana/k6:latest run /scripts/flash-sale.js
 
 load-test-small:
-	docker run --rm --network host -e VUS=10 -e DURATION=5s -i grafana/k6:latest run - < loadtest/flash-sale.js
+	docker run --rm --network stockrush-go_default -e API_BASE_URL=http://api:8080 -e VUS=10 -e DURATION=5s -v "$(CURDIR)/loadtest:/scripts:ro" grafana/k6:latest run /scripts/flash-sale.js
 
 load-test-demo:
 	go run ./cmd/loadgen -mode demo -attempts 1000
