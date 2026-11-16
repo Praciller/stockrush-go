@@ -85,21 +85,35 @@ func (s *Store) Reserve(ctx context.Context, saleID string, request ReservationR
 	if existingQuantity+request.Quantity > maxQuantity {
 		return s.finishReservationError(ctx, tx, request.IdempotencyKey, &domain.Error{Code: "PURCHASE_LIMIT_EXCEEDED", Message: "The per-user purchase limit would be exceeded", HTTPStatus: 409})
 	}
-	saleResult, err := tx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock-$2,updated_at=now()
+	// Keep the idempotency claim in the outer transaction so a rejected stock update can still be replayed.
+	stockTx, err := tx.Begin(ctx)
+	if err != nil {
+		return ReservationResult{}, fmt.Errorf("begin reservation stock savepoint: %w", err)
+	}
+	saleResult, err := stockTx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock-$2,updated_at=now()
 		WHERE id=$1 AND state='active' AND remaining_stock >= $2`, saleID, request.Quantity)
 	if err != nil {
 		return ReservationResult{}, err
 	}
 	if saleResult.RowsAffected() == 0 {
+		if err := stockTx.Rollback(ctx); err != nil {
+			return ReservationResult{}, fmt.Errorf("roll back reservation stock: %w", err)
+		}
 		return s.finishReservationError(ctx, tx, request.IdempotencyKey, &domain.Error{Code: "INVENTORY_SOLD_OUT", Message: "The flash sale allocation is sold out", HTTPStatus: 409})
 	}
-	result, err := tx.Exec(ctx, `UPDATE inventory SET available=available-$1,reserved=reserved+$1,updated_at=now()
+	result, err := stockTx.Exec(ctx, `UPDATE inventory SET available=available-$1,reserved=reserved+$1,updated_at=now()
 		WHERE product_id=$2 AND available >= $1`, request.Quantity, productID)
 	if err != nil {
 		return ReservationResult{}, err
 	}
 	if result.RowsAffected() == 0 {
+		if err := stockTx.Rollback(ctx); err != nil {
+			return ReservationResult{}, fmt.Errorf("roll back reservation stock: %w", err)
+		}
 		return s.finishReservationError(ctx, tx, request.IdempotencyKey, &domain.Error{Code: "INVENTORY_SOLD_OUT", Message: "The requested product is sold out", HTTPStatus: 409})
+	}
+	if err := stockTx.Commit(ctx); err != nil {
+		return ReservationResult{}, fmt.Errorf("release reservation stock savepoint: %w", err)
 	}
 
 	reservationID, err := domain.NewID()
@@ -168,6 +182,7 @@ func (s *Store) replayReservation(ctx context.Context, tx pgx.Tx, key, userID, f
 	return *response.Result, nil
 }
 
+// finishReservationError commits the outer transaction. Callers must roll back business mutations first.
 func (s *Store) finishReservationError(ctx context.Context, tx pgx.Tx, key string, domainErr *domain.Error) (ReservationResult, error) {
 	body, _ := json.Marshal(idempotencyResponse{ErrorCode: domainErr.Code, Message: domainErr.Message})
 	if _, err := tx.Exec(ctx, `UPDATE idempotency_keys SET response_status=$2,response_body=$3 WHERE key=$1`, key, domainErr.HTTPStatus, body); err != nil {
