@@ -7,6 +7,7 @@ const attemptOptions = [10, 100, 500, 1000];
 const staticDemo = import.meta.env.VITE_STATIC_DEMO === "true";
 const publicDemo = !staticDemo && Boolean(import.meta.env.VITE_API_BASE_URL);
 const localLoadEnabled = Boolean(import.meta.env.VITE_DEMO_TOKEN);
+const showSimulator = !staticDemo && !publicDemo && localLoadEnabled;
 
 function currency(minor: number, code: string) {
   return new Intl.NumberFormat("en", { style: "currency", currency: code }).format(minor / 100);
@@ -107,7 +108,7 @@ function App() {
       <header className="topbar">
         <a className="brand" href="#overview" aria-label="StockRush Go overview"><span>SR</span> StockRush Go</a>
         <nav aria-label="Project sections">
-          <a href="#proof">Proof</a><a href="#simulator">Simulator</a><a href="#orders">Orders</a><a href="#architecture">Architecture</a>
+          <a href="#proof">Proof</a>{showSimulator && <a href="#simulator">Simulator</a>}<a href="#orders">Orders</a><a href="#architecture">Architecture</a>
         </nav>
         <div className="top-actions"><a className="text-link" href="https://github.com/Praciller/stockrush-go">Source</a>{!staticDemo && <a className="text-link" href={api.openapiURL}>OpenAPI</a>}</div>
       </header>
@@ -143,7 +144,7 @@ function App() {
           </dl>
         </section>
 
-        {!publicDemo && localLoadEnabled && <section id="simulator" className="simulator" aria-labelledby="simulator-title">
+        {showSimulator && <section id="simulator" className="simulator" aria-labelledby="simulator-title">
           <div className="section-heading">
             <div><p className="eyebrow">BOUNDED LOCAL LOAD</p><h2 id="simulator-title">Reproduce the contention</h2></div>
             <p>Every run resets synthetic stock to 100. No unlimited option exists.</p>
