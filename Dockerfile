@@ -1,4 +1,4 @@
-FROM golang:1.26.5-alpine AS build
+FROM golang:1.26.11-alpine AS build
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_TIME=unknown
@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 go build -ldflags "-X stockrush-go/internal/httpserver.Version
     CGO_ENABLED=0 go build -o /out/invariant-check ./cmd/invariant-check && \
     CGO_ENABLED=0 go build -o /out/healthcheck ./cmd/healthcheck
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 WORKDIR /app
 COPY --from=build /out/ /usr/local/bin/
 COPY db/migrations ./db/migrations
