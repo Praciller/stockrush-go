@@ -85,21 +85,39 @@ func (s *Store) Reserve(ctx context.Context, saleID string, request ReservationR
 	if existingQuantity+request.Quantity > maxQuantity {
 		return s.finishReservationError(ctx, tx, request.IdempotencyKey, &domain.Error{Code: "PURCHASE_LIMIT_EXCEEDED", Message: "The per-user purchase limit would be exceeded", HTTPStatus: 409})
 	}
-	saleResult, err := tx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock-$2,updated_at=now()
+	// Keep the idempotency claim in the outer transaction so a rejected stock update can still be replayed.
+	stockTx, err := tx.Begin(ctx)
+	if err != nil {
+		return ReservationResult{}, fmt.Errorf("begin reservation stock savepoint: %w", err)
+	}
+	// Restoration locks inventory before a sale. Take the same row lock before checking sale allocation.
+	if _, err := stockTx.Exec(ctx, `SELECT 1 FROM inventory WHERE product_id=$1 FOR NO KEY UPDATE`, productID); err != nil {
+		return ReservationResult{}, fmt.Errorf("lock reservation inventory: %w", err)
+	}
+	saleResult, err := stockTx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock-$2,updated_at=now()
 		WHERE id=$1 AND state='active' AND remaining_stock >= $2`, saleID, request.Quantity)
 	if err != nil {
 		return ReservationResult{}, err
 	}
 	if saleResult.RowsAffected() == 0 {
+		if err := stockTx.Rollback(ctx); err != nil {
+			return ReservationResult{}, fmt.Errorf("roll back reservation stock: %w", err)
+		}
 		return s.finishReservationError(ctx, tx, request.IdempotencyKey, &domain.Error{Code: "INVENTORY_SOLD_OUT", Message: "The flash sale allocation is sold out", HTTPStatus: 409})
 	}
-	result, err := tx.Exec(ctx, `UPDATE inventory SET available=available-$1,reserved=reserved+$1,updated_at=now()
+	result, err := stockTx.Exec(ctx, `UPDATE inventory SET available=available-$1,reserved=reserved+$1,updated_at=now()
 		WHERE product_id=$2 AND available >= $1`, request.Quantity, productID)
 	if err != nil {
 		return ReservationResult{}, err
 	}
 	if result.RowsAffected() == 0 {
+		if err := stockTx.Rollback(ctx); err != nil {
+			return ReservationResult{}, fmt.Errorf("roll back reservation stock: %w", err)
+		}
 		return s.finishReservationError(ctx, tx, request.IdempotencyKey, &domain.Error{Code: "INVENTORY_SOLD_OUT", Message: "The requested product is sold out", HTTPStatus: 409})
+	}
+	if err := stockTx.Commit(ctx); err != nil {
+		return ReservationResult{}, fmt.Errorf("release reservation stock savepoint: %w", err)
 	}
 
 	reservationID, err := domain.NewID()
@@ -168,6 +186,7 @@ func (s *Store) replayReservation(ctx context.Context, tx pgx.Tx, key, userID, f
 	return *response.Result, nil
 }
 
+// finishReservationError commits the outer transaction. Callers must roll back business mutations first.
 func (s *Store) finishReservationError(ctx context.Context, tx pgx.Tx, key string, domainErr *domain.Error) (ReservationResult, error) {
 	body, _ := json.Marshal(idempotencyResponse{ErrorCode: domainErr.Code, Message: domainErr.Message})
 	if _, err := tx.Exec(ctx, `UPDATE idempotency_keys SET response_status=$2,response_body=$3 WHERE key=$1`, key, domainErr.HTTPStatus, body); err != nil {
@@ -219,17 +238,20 @@ func (s *Store) TransitionReservation(ctx context.Context, id string, target dom
 	if _, err := tx.Exec(ctx, `UPDATE reservations SET state=$2,updated_at=now() WHERE id=$1`, id, target); err != nil {
 		return domain.Reservation{}, err
 	}
-	orderState := string(target)
-	if _, err := tx.Exec(ctx, `UPDATE orders SET state=$2,updated_at=now() WHERE reservation_id=$1`, id, orderState); err != nil {
-		return domain.Reservation{}, err
-	}
 	if target == domain.ReservationCancelled {
-		if _, err := tx.Exec(ctx, `UPDATE inventory SET available=available+$2,reserved=reserved-$2,updated_at=now() WHERE product_id=$1 AND reserved >= $2`, productID, quantity); err != nil {
+		result, err := tx.Exec(ctx, `UPDATE inventory SET available=available+$2,reserved=reserved-$2,updated_at=now() WHERE product_id=$1 AND reserved >= $2`, productID, quantity)
+		if err != nil {
 			return domain.Reservation{}, err
+		}
+		if result.RowsAffected() != 1 {
+			return domain.Reservation{}, fmt.Errorf("inventory invariant prevented restoration for reservation %s", id)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock+$2,updated_at=now() WHERE id=$1`, saleID, quantity); err != nil {
 			return domain.Reservation{}, err
 		}
+	}
+	if _, err := tx.Exec(ctx, `UPDATE orders SET state=$2,updated_at=now() WHERE reservation_id=$1`, id, string(target)); err != nil {
+		return domain.Reservation{}, err
 	}
 	if err := event(ctx, tx, "reservation", id, "reservation."+string(target), string(current), string(target), nil); err != nil {
 		return domain.Reservation{}, err
