@@ -38,7 +38,7 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Go vulnerability scan
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - name: Unit and race tests
         run: |
           go test ./...
@@ -73,8 +73,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: docker compose config --quiet
-      - run: docker compose build
-      - name: Build and scan API image
+      - run: docker compose -p stockrush-ci build --pull
+      - name: Scan API and frontend images
         run: |
-          docker build -t stockrush-api:ci .
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.72.0 image --severity HIGH,CRITICAL --exit-code 1 --no-progress stockrush-api:ci
+          for image in stockrush-ci-api stockrush-ci-frontend; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v stockrush-ci-trivy:/root/.cache/trivy aquasec/trivy:0.72.0 image --severity HIGH,CRITICAL --exit-code 1 --no-progress "$image"
+          done
