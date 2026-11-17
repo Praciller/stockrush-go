@@ -90,6 +90,10 @@ func (s *Store) Reserve(ctx context.Context, saleID string, request ReservationR
 	if err != nil {
 		return ReservationResult{}, fmt.Errorf("begin reservation stock savepoint: %w", err)
 	}
+	// Restoration locks inventory before a sale. Take the same row lock before checking sale allocation.
+	if _, err := stockTx.Exec(ctx, `SELECT 1 FROM inventory WHERE product_id=$1 FOR NO KEY UPDATE`, productID); err != nil {
+		return ReservationResult{}, fmt.Errorf("lock reservation inventory: %w", err)
+	}
 	saleResult, err := stockTx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock-$2,updated_at=now()
 		WHERE id=$1 AND state='active' AND remaining_stock >= $2`, saleID, request.Quantity)
 	if err != nil {
@@ -234,17 +238,20 @@ func (s *Store) TransitionReservation(ctx context.Context, id string, target dom
 	if _, err := tx.Exec(ctx, `UPDATE reservations SET state=$2,updated_at=now() WHERE id=$1`, id, target); err != nil {
 		return domain.Reservation{}, err
 	}
-	orderState := string(target)
-	if _, err := tx.Exec(ctx, `UPDATE orders SET state=$2,updated_at=now() WHERE reservation_id=$1`, id, orderState); err != nil {
-		return domain.Reservation{}, err
-	}
 	if target == domain.ReservationCancelled {
-		if _, err := tx.Exec(ctx, `UPDATE inventory SET available=available+$2,reserved=reserved-$2,updated_at=now() WHERE product_id=$1 AND reserved >= $2`, productID, quantity); err != nil {
+		result, err := tx.Exec(ctx, `UPDATE inventory SET available=available+$2,reserved=reserved-$2,updated_at=now() WHERE product_id=$1 AND reserved >= $2`, productID, quantity)
+		if err != nil {
 			return domain.Reservation{}, err
+		}
+		if result.RowsAffected() != 1 {
+			return domain.Reservation{}, fmt.Errorf("inventory invariant prevented restoration for reservation %s", id)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock+$2,updated_at=now() WHERE id=$1`, saleID, quantity); err != nil {
 			return domain.Reservation{}, err
 		}
+	}
+	if _, err := tx.Exec(ctx, `UPDATE orders SET state=$2,updated_at=now() WHERE reservation_id=$1`, id, string(target)); err != nil {
+		return domain.Reservation{}, err
 	}
 	if err := event(ctx, tx, "reservation", id, "reservation."+string(target), string(current), string(target), nil); err != nil {
 		return domain.Reservation{}, err

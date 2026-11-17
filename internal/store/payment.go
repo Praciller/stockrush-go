@@ -67,8 +67,9 @@ func (s *Store) SimulatePayment(ctx context.Context, request PaymentRequest) (Pa
 
 	var reservationID, reservationState, productID string
 	var quantity int
+	// The reservation serializes order state changes. The payment foreign key already holds KEY SHARE on the order.
 	err = tx.QueryRow(ctx, `SELECT o.reservation_id,r.state,r.product_id,r.quantity
-		FROM orders o JOIN reservations r ON r.id=o.reservation_id WHERE o.id=$1 FOR UPDATE OF o,r`, request.OrderID).
+		FROM orders o JOIN reservations r ON r.id=o.reservation_id WHERE o.id=$1 FOR NO KEY UPDATE OF r`, request.OrderID).
 		Scan(&reservationID, &reservationState, &productID, &quantity)
 	if err != nil {
 		return PaymentResult{}, notFound(err)

@@ -55,6 +55,18 @@ func (s *Store) ExpireBatch(ctx context.Context, batchSize int, at time.Time) (E
 	}
 	rows.Close()
 
+	if len(expired) > 1 {
+		productIDs := make([]string, 0, len(expired))
+		for _, reservation := range expired {
+			productIDs = append(productIDs, reservation.productID)
+		}
+		// Competing batches can claim disjoint reservations for the same products in different expiry order.
+		if _, err := tx.Exec(ctx, `SELECT product_id FROM inventory WHERE product_id=ANY($1::uuid[])
+			ORDER BY product_id FOR NO KEY UPDATE`, productIDs); err != nil {
+			return ExpirationResult{}, fmt.Errorf("lock expiring inventory: %w", err)
+		}
+	}
+
 	for _, reservation := range expired {
 		result, err := tx.Exec(ctx, `UPDATE inventory SET available=available+$2,reserved=reserved-$2,updated_at=$3
 			WHERE product_id=$1 AND reserved >= $2`, reservation.productID, reservation.quantity, at.UTC())
@@ -67,6 +79,8 @@ func (s *Store) ExpireBatch(ctx context.Context, batchSize int, at time.Time) (E
 		if _, err := tx.Exec(ctx, `UPDATE flash_sales SET remaining_stock=remaining_stock+$2,updated_at=$3 WHERE id=$1`, reservation.saleID, reservation.quantity, at.UTC()); err != nil {
 			return ExpirationResult{}, err
 		}
+	}
+	for _, reservation := range expired {
 		if _, err := tx.Exec(ctx, `UPDATE orders SET state='expired',updated_at=$2 WHERE reservation_id=$1`, reservation.id, at.UTC()); err != nil {
 			return ExpirationResult{}, err
 		}
