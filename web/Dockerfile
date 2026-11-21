@@ -10,7 +10,7 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_STATIC_DEMO=$VITE_STATIC_DEMO
 RUN npm run lint && npm run test && npm run build -- --base=$VITE_BASE_PATH
 
-FROM nginx:1.30.6-alpine-slim
+FROM nginx:1.30.7-alpine-slim
 RUN apk upgrade --no-cache zlib
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
