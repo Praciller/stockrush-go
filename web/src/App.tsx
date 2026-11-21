@@ -4,6 +4,7 @@ import { isZeroOversell, staticReport, staticStatus, type DemoStatus, type LoadR
 import "./styles.css";
 
 const attemptOptions = [10, 100, 500, 1000];
+const evidenceReportUrl = "https://github.com/Praciller/stockrush-go/blob/main/reports/local_portfolio_report.md";
 const staticDemo = import.meta.env.VITE_STATIC_DEMO === "true";
 const publicDemo = !staticDemo && Boolean(import.meta.env.VITE_API_BASE_URL);
 const localLoadEnabled = Boolean(import.meta.env.VITE_DEMO_TOKEN);
@@ -117,7 +118,7 @@ function App() {
         <section id="overview" className="intro" aria-labelledby="page-title">
           <p className="eyebrow">POSTGRESQL CONCURRENCY EVIDENCE / GO MODULAR MONOLITH</p>
           <h1 id="page-title">1,000 buyers. 100 items.<br />Exactly 100 reservations.</h1>
-          <p className="lede">Atomic SQL, idempotent checkout, and lock-safe expiration prove the inventory cannot oversell.</p>
+          <p className="lede">No oversell observed in a local PostgreSQL test with 1,000 concurrent attempts and 100 units of stock.</p>
           <p className={`source-status ${live ? "live" : "offline"}`} role="status" aria-live="polite">
             <span aria-hidden="true" />{message}
           </p>
@@ -126,7 +127,7 @@ function App() {
         <section id="proof" className="proof" aria-labelledby="proof-title">
           <div className="section-heading">
             <div><p className="eyebrow">INVENTORY RECONCILIATION</p><h2 id="proof-title">The database ledger balances</h2></div>
-            <strong className={pass ? "verdict pass" : "verdict fail"}>{pass ? "PASS" : "FAIL"}: ZERO OVERSELLING</strong>
+            <strong className={pass ? "verdict pass" : "verdict fail"}>{staticDemo ? "HISTORICAL TEST" : pass ? "PASS" : "FAIL"}: ZERO OVERSELLING</strong>
           </div>
           <div className="equation" aria-label={`${inventoryTotal} initial inventory equals ${status.product.reserved} reserved plus ${status.product.sold} sold plus ${status.product.available} available`}>
             <div><b>{inventoryTotal}</b><span>initial</span></div><i>=</i>
@@ -142,6 +143,7 @@ function App() {
             <div><dt>Duplicate orders</dt><dd>{status.duplicateOrders}</dd></div>
             <div><dt>Invariant</dt><dd>{status.invariantPass ? "Holds" : "Broken"}</dd></div>
           </dl>
+          {staticDemo && <div className="evidence-meta"><span>Historical local PostgreSQL test results (July 13, 2026).</span><a href={evidenceReportUrl}>Read the full test report</a></div>}
         </section>
 
         {showSimulator && <section id="simulator" className="simulator" aria-labelledby="simulator-title">
@@ -208,7 +210,7 @@ function App() {
         </section>
       </main>
 
-      <footer><span>StockRush Go</span><span>Local Docker Compose demo is authoritative</span><a href="https://github.com/Praciller/stockrush-go/blob/main/reports/local_portfolio_report.md">Evidence report</a></footer>
+      <footer><span>StockRush Go</span><span>Local Docker Compose demo is authoritative</span>{!staticDemo && <a href={evidenceReportUrl}>Evidence report</a>}</footer>
     </>
   );
 }
