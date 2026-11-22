@@ -127,7 +127,9 @@ function App() {
         <section id="proof" className="proof" aria-labelledby="proof-title">
           <div className="section-heading">
             <div><p className="eyebrow">INVENTORY RECONCILIATION</p><h2 id="proof-title">The database ledger balances</h2></div>
-            <strong className={pass ? "verdict pass" : "verdict fail"}>{staticDemo ? "HISTORICAL TEST" : pass ? "PASS" : "FAIL"}: ZERO OVERSELLING</strong>
+            <strong className={`verdict ${!live ? "historical" : pass ? "pass" : "fail"}`}>
+              {!live ? "HISTORICAL TEST" : pass ? "PASS" : "FAIL"}: ZERO OVERSELLING
+            </strong>
           </div>
           <div className="equation" aria-label={`${inventoryTotal} initial inventory equals ${status.product.reserved} reserved plus ${status.product.sold} sold plus ${status.product.available} available`}>
             <div><b>{inventoryTotal}</b><span>initial</span></div><i>=</i>
@@ -170,7 +172,7 @@ function App() {
 
         <section className="sale" aria-labelledby="sale-title">
           <div>
-            <p className="eyebrow">ACTIVE FLASH SALE</p>
+            <p className="eyebrow">FLASH SALE STATUS</p>
             <h2 id="sale-title">{status.product.name}</h2>
             <p>{status.product.description}</p>
           </div>
@@ -183,7 +185,13 @@ function App() {
         </section>
 
         <section id="orders" className="orders" aria-labelledby="orders-title">
-          <div className="section-heading"><div><p className="eyebrow">RECENT DATABASE STATE</p><h2 id="orders-title">Orders and reservations</h2></div><span>{status.orders} total orders</span></div>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">{live ? "CURRENT DATABASE STATE" : "HISTORICAL PORTFOLIO EVIDENCE"}</p>
+              <h2 id="orders-title">Orders and reservations</h2>
+            </div>
+            <span>{status.orders} total orders</span>
+          </div>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Order</th><th>User</th><th>State</th><th>Qty</th><th>Created</th></tr></thead>
