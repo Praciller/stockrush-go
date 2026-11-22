@@ -43,16 +43,25 @@ describe("portfolio navigation", () => {
     expect(proof).toContain('href="https://github.com/Praciller/stockrush-go/blob/main/reports/local_portfolio_report.md"');
     expect(proof).toContain("Read the full test report");
     expect(markup).not.toContain(">Evidence report</a>");
+
+    const sale = markup.match(/<section class="sale"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const orders = markup.match(/<section id="orders"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(sale).toContain("FLASH SALE STATUS");
+    expect(sale).toContain("ENDED");
+    expect(sale).not.toContain("ACTIVE FLASH SALE");
+    expect(orders).toContain("HISTORICAL PORTFOLIO EVIDENCE");
   });
 
-  it("keeps the live/local report link and verdict behavior", async () => {
+  it("labels fallback data as historical until live database state is confirmed", async () => {
     vi.stubEnv("VITE_STATIC_DEMO", "false");
     vi.resetModules();
-    const { default: LiveApp } = await import("./App");
-    const markup = renderToStaticMarkup(createElement(LiveApp));
+    const { default: LocalApp } = await import("./App");
+    const markup = renderToStaticMarkup(createElement(LocalApp));
 
     expect(markup).toContain(">Evidence report</a>");
-    expect(markup).toContain("PASS: ZERO OVERSELLING");
+    expect(markup).toContain("HISTORICAL TEST: ZERO OVERSELLING");
+    expect(markup).toContain('class="verdict historical"');
+    expect(markup).not.toContain("PASS: ZERO OVERSELLING");
     expect(markup).not.toContain("Historical local PostgreSQL test results");
     expect(markup).not.toContain("Read the full test report");
   });
